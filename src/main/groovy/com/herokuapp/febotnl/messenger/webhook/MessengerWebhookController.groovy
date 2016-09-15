@@ -35,7 +35,7 @@ class MessengerWebhookController {
     ResponseEntity<String> webhook(@RequestBody body,
                                    @RequestParam Map<String, String> params) {
         // TODO **Implement**
-        log.info(environment.properties.keySet().toListString())
+        log.info('{}', environment.containsProperty('facebook-webhook-token'))
         new ResponseEntity<String>(HttpStatus.OK)
     }
 }
