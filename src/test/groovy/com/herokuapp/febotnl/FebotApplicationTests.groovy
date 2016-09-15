@@ -1,4 +1,4 @@
-package com.github.itbalaji
+package com.herokuapp.febotnl
 
 import org.junit.Test
 import org.junit.runner.RunWith
