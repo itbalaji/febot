@@ -7,10 +7,10 @@
 
    <logger name="com.herokuapp.febotnl" level="debug" />
 
-   <logger name="org.springframework" level="warn" />
-   <logger name="org.apache" level="warn" />
+   <logger name="org.springframework" level="info" />
+   <logger name="org.apache" level="info" />
 
-   <root level="debug">
+   <root level="info">
       <appender-ref ref="STDOUT" />
    </root>
 </configuration>

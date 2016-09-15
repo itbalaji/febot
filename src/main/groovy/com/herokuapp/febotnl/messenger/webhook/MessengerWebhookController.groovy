@@ -32,9 +32,7 @@ class MessengerWebhookController {
     }
 
     @RequestMapping(method = RequestMethod.POST)
-    ResponseEntity<String> webhook(@RequestParam('hub.mode') String mode,
-                                   @RequestParam('hub.challenge') String challenge,
-                                   @RequestBody body,
+    ResponseEntity<String> webhook(@RequestBody body,
                                    @RequestParam Map<String, String> params) {
         // TODO **Implement**
         log.info(environment.properties.keySet().toListString())
