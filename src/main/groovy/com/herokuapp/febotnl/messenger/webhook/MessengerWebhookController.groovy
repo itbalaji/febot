@@ -45,19 +45,19 @@ class MessengerWebhookController {
 
                 it.messaging.each {event ->
                     if (event.optin) {
-                        log.info('Received optin')
+                        log.info('Received optin {}', event.optin)
                         // TODO **Implement**
                     }
                     else if (event.message) {
-                        log.info('Received message')
+                        log.info('Received message {}', event.message)
                         // TODO **Implement**
                     }
                     else if (event.delivery) {
-                        log.info('Received delivery receipt')
+                        log.info('Received delivery receipt {}', event.delivery)
                         // TODO **Implement**
                     }
                     else if (event.postback) {
-                        log.info('Received post back')
+                        log.info('Received post back {}', event.postback)
                         // TODO **Implement**
                     }
                     else {
