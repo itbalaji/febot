@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST
@@ -118,6 +119,11 @@ class MessengerWebhookController {
     }
 
     private SendApiResponse sendDataToMessenger(data) {
-        restTemplate.postForObject(GRAPH_API_URL, data, SendApiResponse, [access_token: pageAccessToken])
+        try {
+            restTemplate.postForObject(GRAPH_API_URL, data, SendApiResponse, [access_token: pageAccessToken])
+        }
+        catch (HttpClientErrorException _4xx) {
+            log.error('Could not send {} due to {}', data, _4xx.responseBodyAsString)
+        }
     }
 }
