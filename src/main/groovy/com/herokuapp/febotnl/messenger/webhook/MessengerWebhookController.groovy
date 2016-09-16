@@ -1,6 +1,7 @@
 package com.herokuapp.febotnl.messenger.webhook
 
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
+import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
@@ -44,6 +45,8 @@ class MessengerWebhookController {
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity webhook(@RequestBody body) {
+        log.info(JsonOutput.toJson(body))
+
         if (body.object == 'page') {
             body.entry.each {
                 it.messaging.each {event ->
