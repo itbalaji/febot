@@ -1,11 +1,18 @@
 package com.herokuapp.febotnl.messenger.webhook
 
+import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.util.logging.Slf4j
 import org.springframework.beans.factory.annotation.Autowired
+import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.env.Environment
-import static org.springframework.http.HttpStatus.*
 import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
+import org.springframework.web.client.RestTemplate
+
+import static org.springframework.http.HttpStatus.BAD_REQUEST
+import static org.springframework.http.HttpStatus.*
+import static com.herokuapp.febotnl.messenger.Constants.*
+
 
 /**
  * Webhook for receiving messages from Messenger
@@ -14,35 +21,31 @@ import org.springframework.web.bind.annotation.*
 @RestController
 @RequestMapping('/messenger/webhook')
 class MessengerWebhookController {
-    Environment environment
+    final String verifyToken
+    final RestTemplate restTemplate
+    final String pageAccessToken
 
     @Autowired
-    MessengerWebhookController(Environment environment) {
-        this.environment = environment
+    MessengerWebhookController(Environment environment, @Qualifier('messengerRestTemplate') RestTemplate restTemplate) {
+        verifyToken = environment.getRequiredProperty('facebook-webhook-token')
+        pageAccessToken = environment.getRequiredProperty('facebook-page-access-token')
+        this.restTemplate = restTemplate
     }
 
     @RequestMapping(method = RequestMethod.GET)
     ResponseEntity<String> verifyChallenge(@RequestParam('hub.mode') String mode,
                                            @RequestParam('hub.challenge') String challenge,
                                            @RequestParam('hub.verify_token') String verifyToken) {
-        if ('subscribe' == mode && environment.getRequiredProperty('facebook-webhook-token') == verifyToken)
+        if ('subscribe' == mode && this.verifyToken == verifyToken)
             ResponseEntity.ok(challenge)
         else
             new ResponseEntity<String>(BAD_REQUEST)
     }
 
     @RequestMapping(method = RequestMethod.POST)
-    ResponseEntity webhook(@RequestBody body,
-                                   @RequestParam Map<String, String> params) {
-        log.info('facebook-webhook-token {}', environment.containsProperty('facebook-webhook-token'))
-        log.info('facebook-page-access-token {}', environment.containsProperty('facebook-page-access-token'))
-        log.info('params {}', params)
+    ResponseEntity webhook(@RequestBody body) {
         if (body.object == 'page') {
             body.entry.each {
-                def pageId = it.id
-                def timestamp = it.time
-                log.info('Received event for page {} at {}', pageId, timestamp)
-
                 it.messaging.each {event ->
                     if (event.optin) {
                         log.info('Received optin {}', event.optin)
@@ -50,7 +53,7 @@ class MessengerWebhookController {
                     }
                     else if (event.message) {
                         log.info('Received message {}', event.message)
-                        // TODO **Implement**
+                        processMessage(event.sender.id, event.message)
                     }
                     else if (event.delivery) {
                         log.info('Received delivery receipt {}', event.delivery)
@@ -67,5 +70,51 @@ class MessengerWebhookController {
             }
         }
         new ResponseEntity(OK)
+    }
+
+    private void processMessage(sender, message) {
+        if (message.sticker_id) {
+            processSticker(sender, message.sticker_id)
+        }
+        else if (message.text) {
+            // TODO handle text messages
+        }
+        else if (message.attachments) {
+            message.attachments.each {
+                if (it.type == 'image') {
+                    // TODO handle image
+                }
+                else if (it.type == 'location') {
+                    processLocation(sender, it.payload)
+                }
+            }
+        }
+    }
+
+    private void processLocation(sender, location) {
+        log.info('Received location {} from {}', location, sender)
+        // TODO process location
+    }
+
+    private void processSticker(sender, id) {
+        if (id == STICKER_THUMBS_UP) {
+            sendTextMessage(sender, 'you are welcome 😊')
+        }
+    }
+
+    private void sendTextMessage(sender, String message) {
+        def data = [
+                recipient: [
+                        id: sender
+                ],
+                message: [
+                        text: message
+                ]
+        ]
+        sendDataToMessenger(data)
+    }
+
+    private SendApiResponse sendDataToMessenger(data) {
+        restTemplate.postForObject(GRAPH_API_URL, data, SendApiResponse, [access_token: pageAccessToken])
     }
 }
