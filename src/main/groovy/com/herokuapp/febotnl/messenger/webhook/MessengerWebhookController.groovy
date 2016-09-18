@@ -1,5 +1,7 @@
 package com.herokuapp.febotnl.messenger.webhook
 
+import com.herokuapp.febotnl.google.places.model.Response
+import com.herokuapp.febotnl.google.places.model.Result
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
@@ -10,6 +12,7 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
+import com.herokuapp.febotnl.google.places.model.ResponseStatus as GooglePlacesResponseStatus
 
 import static org.springframework.http.HttpStatus.BAD_REQUEST
 import static org.springframework.http.HttpStatus.*
@@ -26,11 +29,13 @@ class MessengerWebhookController {
     final String verifyToken
     final RestTemplate restTemplate
     final String pageAccessToken
+    final String googleKey
 
     @Autowired
     MessengerWebhookController(Environment environment, @Qualifier('messengerRestTemplate') RestTemplate restTemplate) {
         verifyToken = environment.getRequiredProperty('facebook-webhook-token')
         pageAccessToken = environment.getRequiredProperty('facebook-page-access-token')
+        googleKey = environment.getRequiredProperty('google-key')
         this.restTemplate = restTemplate
     }
 
@@ -46,29 +51,25 @@ class MessengerWebhookController {
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity webhook(@RequestBody body) {
-        log.info(JsonOutput.toJson(body))
+        log.info('Received {}', JsonOutput.toJson(body))
 
         if (body.object == 'page') {
             body.entry.each {
                 it.messaging.each {event ->
                     if (event.optin) {
-                        log.info('Received optin {}', event.optin)
                         // TODO **Implement**
                     }
                     else if (event.message) {
-                        log.info('Received message {}', event.message)
                         processMessage(event.sender.id, event.message)
                     }
                     else if (event.delivery) {
-                        log.info('Received delivery receipt {}', event.delivery)
                         // TODO **Implement**
                     }
                     else if (event.postback) {
-                        log.info('Received post back {}', event.postback)
                         // TODO **Implement**
                     }
                     else {
-                        log.warn('Unknown messaging event {} received at webhook', event)
+                        log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
                     }
                 }
             }
@@ -96,8 +97,34 @@ class MessengerWebhookController {
     }
 
     private void processLocation(sender, location) {
-        log.info('Received location {} from {}', location, sender)
-        // TODO process location
+        Response febos = getFeboAt(location.coordinates)
+        if (!febos.htmlAttributions && febos.status == GooglePlacesResponseStatus.OK) {
+            Result nearest = febos.results.first()
+            sendTextMessage(sender, "The nearest FEBO is at $nearest.vicinity")
+            if (nearest.openingHours?.openNow) {
+                sendTextMessage(sender, 'and it is open now!!')
+            }
+            else {
+                sendTextMessage(sender, 'but it is probably closed now 😞')
+                Result open = febos.results.find {it.openingHours?.openNow}
+                if (open) {
+                    sendTextMessage(sender, "The nearest FEBO that is open now is at $open.vicinity")
+                }
+                else {
+                    sendTextMessage(sender, 'Unfortunately there is nothing near that is open now')
+                }
+            }
+        }
+    }
+
+    private Response getFeboAt(coordinates) {
+        try {
+            restTemplate.getForObject(GOOGLE_PLACES_URL, Response, [key: googleKey, lat: coordinates.lat, lon: coordinates.long])
+        }
+        catch (HttpClientErrorException _4xx) {
+            log.error('Could not get FEBO at {} due to {}', coordinates, _4xx.responseBodyAsString)
+            null
+        }
     }
 
     private void processSticker(sender, id) {
@@ -124,6 +151,7 @@ class MessengerWebhookController {
         }
         catch (HttpClientErrorException _4xx) {
             log.error('Could not send {} due to {}', data, _4xx.responseBodyAsString)
+            null
         }
     }
 }
