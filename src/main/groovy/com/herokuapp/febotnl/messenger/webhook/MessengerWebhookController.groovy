@@ -6,6 +6,7 @@ import com.herokuapp.febotnl.google.places.model.Result
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
+import org.apache.commons.codec.digest.HmacUtils
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.env.Environment
@@ -15,11 +16,10 @@ import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
 
 import javax.servlet.http.HttpServletRequest
+import java.nio.charset.StandardCharsets
 
 import static com.herokuapp.febotnl.messenger.Constants.*
-import static org.springframework.http.HttpStatus.BAD_REQUEST
-import static org.springframework.http.HttpStatus.OK
-
+import static org.springframework.http.HttpStatus.*
 
 /**
  * Webhook for receiving messages from Messenger
@@ -32,12 +32,14 @@ class MessengerWebhookController {
     final RestTemplate restTemplate
     final String pageAccessToken
     final String googleKey
+    final String facebookAppSecret
 
     @Autowired
     MessengerWebhookController(Environment environment, @Qualifier('messengerRestTemplate') RestTemplate restTemplate) {
         verifyToken = environment.getRequiredProperty('facebook-webhook-token')
         pageAccessToken = environment.getRequiredProperty('facebook-page-access-token')
         googleKey = environment.getRequiredProperty('google-key')
+        facebookAppSecret = environment.getRequiredProperty('facebook-app-secret')
         this.restTemplate = restTemplate
     }
 
@@ -53,30 +55,39 @@ class MessengerWebhookController {
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity webhook(HttpServletRequest request, @RequestHeader('X-Hub-Signature') String xHubSignature, @RequestBody body) {
-        log.info('Received {} with {} encoding', JsonOutput.toJson(body), request.getCharacterEncoding())
-
-        if (body.object == 'page') {
-            body.entry.each {
-                it.messaging.each {event ->
-                    if (event.optin) {
-                        // TODO **Implement**
-                    }
-                    else if (event.message) {
-                        processMessage(event.sender.id, event.message)
-                    }
-                    else if (event.delivery) {
-                        // TODO **Implement**
-                    }
-                    else if (event.postback) {
-                        // TODO **Implement**
-                    }
-                    else {
-                        log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
+        log.info('Received {} with {} hash', JsonOutput.toJson(body), xHubSignature)
+        if(isPayloadFromFacebook(request.inputStream.bytes, xHubSignature)) {
+            if (body.object == 'page') {
+                body.entry.each {
+                    it.messaging.each { event ->
+                        if (event.optin) {
+                            // TODO **Implement**
+                        } else if (event.message) {
+                            processMessage(event.sender.id, event.message)
+                        } else if (event.delivery) {
+                            // TODO **Implement**
+                        } else if (event.postback) {
+                            // TODO **Implement**
+                        } else {
+                            log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
+                        }
                     }
                 }
             }
+            new ResponseEntity(OK)
         }
-        new ResponseEntity(OK)
+        else {
+            new ResponseEntity(FORBIDDEN)
+        }
+    }
+
+    private boolean isPayloadFromFacebook(byte[] payloadBytes, String xHubSignature) {
+        if (xHubSignature?.startsWith('sha1=')) {
+            String hashReceived = xHubSignature.substring(5)
+            String hashComputed = HmacUtils.hmacSha1Hex(facebookAppSecret.getBytes(StandardCharsets.UTF_8), payloadBytes)
+            return hashReceived == hashComputed
+        }
+        return false
     }
 
     private void processMessage(sender, message) {

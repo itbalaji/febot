@@ -8,6 +8,7 @@ import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonSlurper
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseEntity
+import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
@@ -29,8 +30,9 @@ class MessengerWebhookControllerTest extends Specification {
         env = Mock(Environment)
         env.getRequiredProperty('facebook-webhook-token') >> 't0k3n'
         env.getRequiredProperty('google-key') >> 'k3y'
+        env.getRequiredProperty('facebook-app-secret') >> 's3cr3t'
         template = Mock(RestTemplate)
-        request = Mock(HttpServletRequest)
+        request = new MockHttpServletRequest()
         controller = new MessengerWebhookController(env, template)
     }
 
@@ -57,7 +59,7 @@ class MessengerWebhookControllerTest extends Specification {
         def body = new JsonSlurper().parseText('{"object":"page","entry":[{"id":"999999999999999","time":1474035686272,"messaging":[{"sender":{"id":"9999999999999999"},"recipient":{"id":"999999999999999"},"timestamp":1474035663272,"message":{"mid":"mid.9999999999999:a1a1a1a1a1a1a1a1a1","seq":19,"sticker_id":369239263222822,"attachments":[{"type":"image","payload":{"url":"https://scontent.xx.fbcdn.net/t39.1997-6/851557_369239266556155_759568595_n.png?_nc_ad=z-m"}}]}}]}]}')
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, '', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
 
         then:
         result
@@ -71,7 +73,7 @@ class MessengerWebhookControllerTest extends Specification {
         1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(vicinity: '1 Green Road, Greenland')], ResponseStatus.OK)
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, '', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
 
         then:
         result
@@ -87,7 +89,7 @@ class MessengerWebhookControllerTest extends Specification {
         1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(openingHours: new OpeningHours(true), vicinity: '1 Green Road, Greenland')], ResponseStatus.OK)
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, '', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
 
         then:
         result
@@ -102,7 +104,7 @@ class MessengerWebhookControllerTest extends Specification {
         1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(openingHours: new OpeningHours(false), vicinity: '1 Green Road, Greenland'), new Result(openingHours: new OpeningHours(true), vicinity: '2 Green Road, Greenland')], ResponseStatus.OK)
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, '', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
 
         then:
         result
