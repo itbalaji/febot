@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
@@ -33,14 +34,16 @@ class MessengerWebhookController {
     final String pageAccessToken
     final String googleKey
     final String facebookAppSecret
+    final MappingJackson2HttpMessageConverter jackson2HttpMessageConverter
 
     @Autowired
-    MessengerWebhookController(Environment environment, @Qualifier('messengerRestTemplate') RestTemplate restTemplate) {
+    MessengerWebhookController(Environment environment, @Qualifier('messengerRestTemplate') RestTemplate restTemplate, MappingJackson2HttpMessageConverter converter) {
         verifyToken = environment.getRequiredProperty('facebook-webhook-token')
         pageAccessToken = environment.getRequiredProperty('facebook-page-access-token')
         googleKey = environment.getRequiredProperty('google-key')
         facebookAppSecret = environment.getRequiredProperty('facebook-app-secret')
         this.restTemplate = restTemplate
+        this.jackson2HttpMessageConverter = converter
     }
 
     @RequestMapping(method = RequestMethod.GET)
@@ -54,9 +57,11 @@ class MessengerWebhookController {
     }
 
     @RequestMapping(method = RequestMethod.POST)
-    ResponseEntity webhook(HttpServletRequest request, @RequestHeader('X-Hub-Signature') String xHubSignature, @RequestBody body) {
-        log.info('Received {} with {} hash', JsonOutput.toJson(body), xHubSignature)
-        if(isPayloadFromFacebook(request.inputStream.bytes, xHubSignature)) {
+    ResponseEntity webhook(HttpServletRequest request, @RequestHeader('X-Hub-Signature') String xHubSignature) {
+        byte[] bodyBytes = request.inputStream.bytes
+        if(isPayloadFromFacebook(bodyBytes, xHubSignature)) {
+            def body = jackson2HttpMessageConverter.objectMapper.readValue(bodyBytes, Map)
+            log.info('Received {} body from facebook', body)
             if (body.object == 'page') {
                 body.entry.each {
                     it.messaging.each { event ->
@@ -85,6 +90,7 @@ class MessengerWebhookController {
         if (xHubSignature?.startsWith('sha1=')) {
             String hashReceived = xHubSignature.substring(5)
             String hashComputed = HmacUtils.hmacSha1Hex(facebookAppSecret.getBytes(StandardCharsets.UTF_8), payloadBytes)
+            log.info('Received {} computed {}', hashReceived, hashComputed)
             return hashReceived == hashComputed
         }
         return false

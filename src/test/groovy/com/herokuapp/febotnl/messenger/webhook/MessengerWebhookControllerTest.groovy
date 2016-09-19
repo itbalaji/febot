@@ -5,14 +5,12 @@ import com.herokuapp.febotnl.google.places.model.Response
 import com.herokuapp.febotnl.google.places.model.ResponseStatus
 import com.herokuapp.febotnl.google.places.model.Result
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
-import groovy.json.JsonSlurper
 import org.springframework.core.env.Environment
 import org.springframework.http.ResponseEntity
+import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
-
-import javax.servlet.http.HttpServletRequest
 
 import static com.herokuapp.febotnl.messenger.Constants.GOOGLE_PLACES_URL
 import static com.herokuapp.febotnl.messenger.Constants.GRAPH_API_URL
@@ -24,7 +22,7 @@ class MessengerWebhookControllerTest extends Specification {
     Environment env
     MessengerWebhookController controller
     RestTemplate template
-    HttpServletRequest request
+    MockHttpServletRequest request
 
     def setup() {
         env = Mock(Environment)
@@ -33,7 +31,7 @@ class MessengerWebhookControllerTest extends Specification {
         env.getRequiredProperty('facebook-app-secret') >> 's3cr3t'
         template = Mock(RestTemplate)
         request = new MockHttpServletRequest()
-        controller = new MessengerWebhookController(env, template)
+        controller = new MessengerWebhookController(env, template, new MappingJackson2HttpMessageConverter())
     }
 
     def 'VerifyChallenge'() {
@@ -56,10 +54,10 @@ class MessengerWebhookControllerTest extends Specification {
 
     def 'Webhook sticker'() {
         given:
-        def body = new JsonSlurper().parseText('{"object":"page","entry":[{"id":"999999999999999","time":1474035686272,"messaging":[{"sender":{"id":"9999999999999999"},"recipient":{"id":"999999999999999"},"timestamp":1474035663272,"message":{"mid":"mid.9999999999999:a1a1a1a1a1a1a1a1a1","seq":19,"sticker_id":369239263222822,"attachments":[{"type":"image","payload":{"url":"https://scontent.xx.fbcdn.net/t39.1997-6/851557_369239266556155_759568595_n.png?_nc_ad=z-m"}}]}}]}]}')
+        request.setContent('{"object":"page","entry":[{"id":"999999999999999","time":1474035686272,"messaging":[{"sender":{"id":"9999999999999999"},"recipient":{"id":"999999999999999"},"timestamp":1474035663272,"message":{"mid":"mid.9999999999999:a1a1a1a1a1a1a1a1a1","seq":19,"sticker_id":369239263222822,"attachments":[{"type":"image","payload":{"url":"https://scontent.xx.fbcdn.net/t39.1997-6/851557_369239266556155_759568595_n.png?_nc_ad=z-m"}}]}}]}]}'.bytes)
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=cab07c4e8a665e77e08d4bc2683d2637af1030ef')
 
         then:
         result
@@ -69,11 +67,11 @@ class MessengerWebhookControllerTest extends Specification {
 
     def 'Webhook location - nothing open'() {
         given:
-        def body = new JsonSlurper().parseText('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}')
+        request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
         1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(vicinity: '1 Green Road, Greenland')], ResponseStatus.OK)
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=0aadf6c6435ac95d1c22e200434981888122a867')
 
         then:
         result
@@ -85,11 +83,11 @@ class MessengerWebhookControllerTest extends Specification {
 
     def 'Webhook location - nearest is open'() {
         given:
-        def body = new JsonSlurper().parseText('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}')
+        request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
         1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(openingHours: new OpeningHours(true), vicinity: '1 Green Road, Greenland')], ResponseStatus.OK)
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=0aadf6c6435ac95d1c22e200434981888122a867')
 
         then:
         result
@@ -100,11 +98,11 @@ class MessengerWebhookControllerTest extends Specification {
 
     def 'Webhook location - nearest not open but another open'() {
         given:
-        def body = new JsonSlurper().parseText('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}')
+        request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
         1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(openingHours: new OpeningHours(false), vicinity: '1 Green Road, Greenland'), new Result(openingHours: new OpeningHours(true), vicinity: '2 Green Road, Greenland')], ResponseStatus.OK)
 
         when:
-        ResponseEntity<String> result = controller.webhook(request, 'sha1=319e5f42b6b9dc5daa3b1d411df1a3f7c891f358', body)
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=0aadf6c6435ac95d1c22e200434981888122a867')
 
         then:
         result
