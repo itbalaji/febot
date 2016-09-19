@@ -1,6 +1,7 @@
 package com.herokuapp.febotnl.messenger.webhook
 
 import com.herokuapp.febotnl.google.places.model.Response
+import com.herokuapp.febotnl.google.places.model.ResponseStatus as GooglePlacesResponseStatus
 import com.herokuapp.febotnl.google.places.model.Result
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonOutput
@@ -12,11 +13,12 @@ import org.springframework.http.ResponseEntity
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
-import com.herokuapp.febotnl.google.places.model.ResponseStatus as GooglePlacesResponseStatus
 
-import static org.springframework.http.HttpStatus.BAD_REQUEST
-import static org.springframework.http.HttpStatus.*
+import javax.servlet.http.HttpServletRequest
+
 import static com.herokuapp.febotnl.messenger.Constants.*
+import static org.springframework.http.HttpStatus.BAD_REQUEST
+import static org.springframework.http.HttpStatus.OK
 
 
 /**
@@ -50,8 +52,8 @@ class MessengerWebhookController {
     }
 
     @RequestMapping(method = RequestMethod.POST)
-    ResponseEntity webhook(@RequestBody body) {
-        log.info('Received {}', JsonOutput.toJson(body))
+    ResponseEntity webhook(HttpServletRequest request, @RequestHeader('X-Hub-Signature') String xHubSignature, @RequestBody body) {
+        log.info('Received {} with {} encoding', JsonOutput.toJson(body), request.getCharacterEncoding())
 
         if (body.object == 'page') {
             body.entry.each {
