@@ -61,7 +61,7 @@ class MessengerWebhookController {
         byte[] bodyBytes = request.inputStream.bytes
         if(isPayloadFromFacebook(bodyBytes, xHubSignature)) {
             def body = jackson2HttpMessageConverter.objectMapper.readValue(bodyBytes, Map)
-            log.info('Received {} body from facebook', body)
+            log.info('Received {} body from facebook', JsonOutput.toJson(body))
             if (body.object == 'page') {
                 body.entry.each {
                     it.messaging.each { event ->
@@ -101,7 +101,7 @@ class MessengerWebhookController {
             processSticker(sender, message.sticker_id)
         }
         else if (message.text) {
-            // TODO handle text messages
+            sendLocationQuickReply(sender, "I wish I understood what you say 😞. Wny don't you try sending your location?")
         }
         else if (message.attachments) {
             message.attachments.each {
@@ -152,8 +152,18 @@ class MessengerWebhookController {
         }
     }
 
+    private void sendLocationQuickReply(sender, String message) {
+        def data = getTextMessage(sender, message)
+        data.message.quick_replies = [[content_type: 'location']]
+        sendDataToMessenger(data)
+    }
+
     private void sendTextMessage(sender, String message) {
-        def data = [
+        sendDataToMessenger(getTextMessage(sender, message))
+    }
+
+    private static def getTextMessage(sender, String message) {
+        return [
                 recipient: [
                         id: sender
                 ],
@@ -161,8 +171,8 @@ class MessengerWebhookController {
                         text: message
                 ]
         ]
-        sendDataToMessenger(data)
     }
+
 
     private SendApiResponse sendDataToMessenger(data) {
         try {
