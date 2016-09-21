@@ -1,15 +1,15 @@
 package com.herokuapp.febotnl.messenger.webhook
 
-import com.herokuapp.febotnl.google.places.model.Response
-import com.herokuapp.febotnl.google.places.model.ResponseStatus as GooglePlacesResponseStatus
-import com.herokuapp.febotnl.google.places.model.Result
+import com.herokuapp.febotnl.febo.model.Febo
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
 import org.apache.commons.codec.digest.HmacUtils
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.beans.factory.annotation.Qualifier
+import org.springframework.core.ParameterizedTypeReference
 import org.springframework.core.env.Environment
+import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.web.bind.annotation.*
@@ -101,7 +101,7 @@ class MessengerWebhookController {
             processSticker(sender, message.sticker_id)
         }
         else if (message.text) {
-            sendLocationQuickReply(sender, "I wish I understood what you say 😞. Wny don't you try sending your location?")
+            sendLocationQuickReply(sender, "I wish I understood what you say 😞. Why don't you try sending your location?")
         }
         else if (message.attachments) {
             message.attachments.each {
@@ -116,29 +116,16 @@ class MessengerWebhookController {
     }
 
     private void processLocation(sender, location) {
-        Response febos = getFeboAt(location.coordinates)
-        if (!febos.htmlAttributions && febos.status == GooglePlacesResponseStatus.OK) {
-            Result nearest = febos.results.first()
-            sendTextMessage(sender, "The nearest FEBO is at $nearest.vicinity")
-            if (nearest.openingHours?.openNow) {
-                sendTextMessage(sender, 'and it is open now!!')
-            }
-            else {
-                sendTextMessage(sender, 'but it is probably closed now 😞')
-                Result open = febos.results.find {it.openingHours?.openNow}
-                if (open) {
-                    sendTextMessage(sender, "The nearest FEBO that is open now is at $open.vicinity")
-                }
-                else {
-                    sendTextMessage(sender, 'Unfortunately there is nothing near that is open now')
-                }
-            }
+        List<Febo> febos = getFeboAt(location.coordinates)
+        if (febos) {
+            Febo nearest = febos.first()
+            sendFeboInGenericTemplate(sender, nearest)
         }
     }
 
-    private Response getFeboAt(coordinates) {
+    private Febo[] getFeboAt(coordinates) {
         try {
-            restTemplate.getForObject(GOOGLE_PLACES_URL, Response, [key: googleKey, lat: coordinates.lat, lon: coordinates.long])
+            restTemplate.exchange(FEBO_NL_URL, HttpMethod.GET, null, new ParameterizedTypeReference<List<Febo>>() {}, [lat: coordinates.lat, lon: coordinates.long]).body
         }
         catch (HttpClientErrorException _4xx) {
             log.error('Could not get FEBO at {} due to {}', coordinates, _4xx.responseBodyAsString)
@@ -156,6 +143,39 @@ class MessengerWebhookController {
         def data = getTextMessage(sender, message)
         data.message.quick_replies = [[content_type: 'location']]
         sendDataToMessenger(data)
+    }
+
+    private void sendFeboInGenericTemplate(sender, Febo febo) {
+        sendDataToMessenger([
+                recipient: [
+                        id: sender
+                ],
+                message: [
+                        attachment: [
+                                type: 'template',
+                                payload: [
+                                        template_type: 'generic',
+                                        elements: [
+                                                [
+                                                        title: "$febo.address, $febo.zip $febo.city" as String,
+                                                        item_url: febo.permalink,
+                                                        subtitle: new XmlSlurper().parseText(febo.hours).tr.find {Calendar.getInstance(new Locale('nl')).getDisplayName(Calendar.DAY_OF_WEEK, Calendar.LONG, new Locale('nl')).equalsIgnoreCase(it.td[0].text())}.td[1].text(),
+                                                        buttons: [
+                                                                [
+                                                                        type: 'element_share'
+                                                                ],
+                                                                [
+                                                                        type: 'phone_number',
+                                                                        title: 'Call',
+                                                                        payload: "+31${febo.phone.substring(1) - '-'}" as String
+                                                                ]
+                                                        ]
+                                                ]
+                                        ]
+                                ]
+                        ]
+                ]
+        ])
     }
 
     private void sendTextMessage(sender, String message) {
@@ -179,7 +199,7 @@ class MessengerWebhookController {
             restTemplate.postForObject(GRAPH_API_URL, data, SendApiResponse, [access_token: pageAccessToken])
         }
         catch (HttpClientErrorException _4xx) {
-            log.error('Could not send {} due to {}', data, _4xx.responseBodyAsString)
+            log.error('Could not send {} due to {}', JsonOutput.toJson(data), _4xx.responseBodyAsString, _4xx)
             null
         }
     }

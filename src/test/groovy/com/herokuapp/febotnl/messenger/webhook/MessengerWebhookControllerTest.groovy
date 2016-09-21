@@ -1,20 +1,19 @@
 package com.herokuapp.febotnl.messenger.webhook
 
-import com.herokuapp.febotnl.google.places.model.OpeningHours
-import com.herokuapp.febotnl.google.places.model.Response
-import com.herokuapp.febotnl.google.places.model.ResponseStatus
-import com.herokuapp.febotnl.google.places.model.Result
+import com.herokuapp.febotnl.febo.model.Febo
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import org.springframework.core.env.Environment
+import org.springframework.http.HttpMethod
 import org.springframework.http.ResponseEntity
 import org.springframework.http.converter.json.MappingJackson2HttpMessageConverter
 import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
-import static com.herokuapp.febotnl.messenger.Constants.GOOGLE_PLACES_URL
+import static com.herokuapp.febotnl.messenger.Constants.FEBO_NL_URL
 import static com.herokuapp.febotnl.messenger.Constants.GRAPH_API_URL
-import static org.springframework.http.HttpStatus.*
+import static org.springframework.http.HttpStatus.FORBIDDEN
+import static org.springframework.http.HttpStatus.OK
 
 /**
  * Test for MessengerWebhookController
@@ -88,7 +87,7 @@ class MessengerWebhookControllerTest extends Specification {
     def 'Webhook location - nothing open'() {
         given:
         request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
-        1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(vicinity: '1 Green Road, Greenland')], ResponseStatus.OK)
+        1 * template.exchange(FEBO_NL_URL, HttpMethod.GET, null, *_) >> new ResponseEntity<>(new Febo(phone: '020-6912593', hours: '<table class="wpsl-opening-hours"><tr><td>Maandag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Dinsdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Woensdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Donderdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Vrijdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Zaterdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Zondag</td><td><time>10:00 - 20:00</time></td></tr></table>'), OK)
 
         when:
         ResponseEntity<String> result = controller.webhook(request, 'sha1=0aadf6c6435ac95d1c22e200434981888122a867')
@@ -96,40 +95,7 @@ class MessengerWebhookControllerTest extends Specification {
         then:
         result
         result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'The nearest FEBO is at 1 Green Road, Greenland'}, SendApiResponse, _)
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'but it is probably closed now 😞'}, SendApiResponse, _)
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'Unfortunately there is nothing near that is open now'}, SendApiResponse, _)
-    }
-
-    def 'Webhook location - nearest is open'() {
-        given:
-        request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
-        1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(openingHours: new OpeningHours(true), vicinity: '1 Green Road, Greenland')], ResponseStatus.OK)
-
-        when:
-        ResponseEntity<String> result = controller.webhook(request, 'sha1=0aadf6c6435ac95d1c22e200434981888122a867')
-
-        then:
-        result
-        result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'The nearest FEBO is at 1 Green Road, Greenland'}, SendApiResponse, _)
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'and it is open now!!'}, SendApiResponse, _)
-    }
-
-    def 'Webhook location - nearest not open but another open'() {
-        given:
-        request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
-        1 * template.getForObject(GOOGLE_PLACES_URL, Response, [key: 'k3y', lat: 52, lon: 4]) >> new Response([], [new Result(openingHours: new OpeningHours(false), vicinity: '1 Green Road, Greenland'), new Result(openingHours: new OpeningHours(true), vicinity: '2 Green Road, Greenland')], ResponseStatus.OK)
-
-        when:
-        ResponseEntity<String> result = controller.webhook(request, 'sha1=0aadf6c6435ac95d1c22e200434981888122a867')
-
-        then:
-        result
-        result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'The nearest FEBO is at 1 Green Road, Greenland'}, SendApiResponse, _)
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'but it is probably closed now 😞'}, SendApiResponse, _)
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'The nearest FEBO that is open now is at 2 Green Road, Greenland'}, SendApiResponse, _)
+        1 * template.postForObject(GRAPH_API_URL, {it.message.attachment.type == 'template' && it.message.attachment.payload.template_type == 'generic' && it.message.attachment.payload.elements.size() == 1 && it.message.attachment.payload.elements[0].buttons.size() == 2}, SendApiResponse, _)
     }
 
     def 'Webhook text'() {
@@ -142,6 +108,6 @@ class MessengerWebhookControllerTest extends Specification {
         then:
         result
         result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'I wish I understood what you say 😞. Wny don\'t you try sending your location?' && it.message.quick_replies.size() == 1 && it.message.quick_replies[0].content_type == 'location'}, SendApiResponse, _)
+        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'I wish I understood what you say 😞. Why don\'t you try sending your location?' && it.message.quick_replies.size() == 1 && it.message.quick_replies[0].content_type == 'location'}, SendApiResponse, _)
     }
 }
