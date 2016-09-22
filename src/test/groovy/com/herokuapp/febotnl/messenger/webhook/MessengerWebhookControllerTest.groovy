@@ -84,7 +84,7 @@ class MessengerWebhookControllerTest extends Specification {
         1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'you are welcome 😊'}, SendApiResponse, _)
     }
 
-    def 'Webhook location - nothing open'() {
+    def 'Webhook location'() {
         given:
         request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"123456789012345"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
         1 * template.exchange(FEBO_NL_URL, HttpMethod.GET, null, *_) >> new ResponseEntity<>(new Febo(phone: '020-6912593', hours: '<table class="wpsl-opening-hours"><tr><td>Maandag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Dinsdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Woensdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Donderdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Vrijdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Zaterdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Zondag</td><td><time>10:00 - 20:00</time></td></tr></table>'), OK)
@@ -95,7 +95,12 @@ class MessengerWebhookControllerTest extends Specification {
         then:
         result
         result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {it.message.attachment.type == 'template' && it.message.attachment.payload.template_type == 'generic' && it.message.attachment.payload.elements.size() == 1 && it.message.attachment.payload.elements[0].buttons.size() == 2}, SendApiResponse, _)
+        1 * template.postForObject(GRAPH_API_URL, {
+            it.message.attachment.type == 'template' &&
+                    it.message.attachment.payload.template_type == 'generic' &&
+                    it.message.attachment.payload.elements.size() == 1 &&
+                    it.message.attachment.payload.elements[0].buttons.size() == 3
+        }, SendApiResponse, _)
     }
 
     def 'Webhook text'() {

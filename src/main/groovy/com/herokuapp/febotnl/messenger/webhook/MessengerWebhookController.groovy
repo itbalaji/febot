@@ -15,6 +15,7 @@ import org.springframework.http.converter.json.MappingJackson2HttpMessageConvert
 import org.springframework.web.bind.annotation.*
 import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
+import org.springframework.web.util.UriTemplate
 
 import javax.servlet.http.HttpServletRequest
 import java.nio.charset.StandardCharsets
@@ -119,7 +120,7 @@ class MessengerWebhookController {
         List<Febo> febos = getFeboAt(location.coordinates)
         if (febos) {
             Febo nearest = febos.first()
-            sendFeboInGenericTemplate(sender, nearest)
+            sendFeboInGenericTemplate(sender, location.coordinates, nearest)
         }
     }
 
@@ -145,7 +146,7 @@ class MessengerWebhookController {
         sendDataToMessenger(data)
     }
 
-    private void sendFeboInGenericTemplate(sender, Febo febo) {
+    private void sendFeboInGenericTemplate(sender, from, Febo febo) {
         sendDataToMessenger([
                 recipient: [
                         id: sender
@@ -168,6 +169,11 @@ class MessengerWebhookController {
                                                                         type: 'phone_number',
                                                                         title: 'Call',
                                                                         payload: "+31${febo.phone.substring(1) - '-'}" as String
+                                                                ],
+                                                                [
+                                                                        type: 'web_url',
+                                                                        title: 'Navigate',
+                                                                        url: new UriTemplate(GOOGLE_MAPS_DIRECTION_URL).expand([fromLat: from.lat, fromLon: from.long, toLat: febo.lat, toLon: febo.lng]).toString()
                                                                 ]
                                                         ]
                                                 ]
