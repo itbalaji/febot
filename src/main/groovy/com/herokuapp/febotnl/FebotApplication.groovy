@@ -10,9 +10,6 @@ import org.springframework.web.client.RestTemplate
 import org.springframework.web.servlet.config.annotation.EnableWebMvc
 
 @SpringBootApplication
-@Configuration
-@EnableWebMvc
-@ComponentScan('com.herokuapp.febotnl')
 public class FebotApplication {
 	@Bean(name='messengerRestTemplate')
 	public RestTemplate restTemplate(RestTemplateBuilder builder) {
