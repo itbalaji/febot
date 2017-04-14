@@ -12,5 +12,5 @@ import org.springframework.data.annotation.Id
 class ReceivedFromMessenger {
     @Id
     String id
-    def data
+    //TODO def data
 }

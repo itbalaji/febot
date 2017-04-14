@@ -1,6 +1,8 @@
 package com.herokuapp.febotnl.messenger.webhook
 
+import com.herokuapp.febotnl.data.ReceivedFromMessengerMongoCollection
 import com.herokuapp.febotnl.febo.model.Febo
+import com.herokuapp.febotnl.messenger.model.ReceivedFromMessenger
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
@@ -36,15 +38,18 @@ class MessengerWebhookController {
     final String googleKey
     final String facebookAppSecret
     final MappingJackson2HttpMessageConverter jackson2HttpMessageConverter
+    final ReceivedFromMessengerMongoCollection rfmmCollection
 
     @Autowired
-    MessengerWebhookController(Environment environment, @Qualifier('messengerRestTemplate') RestTemplate restTemplate, MappingJackson2HttpMessageConverter converter) {
+    MessengerWebhookController(Environment environment, @Qualifier('messengerRestTemplate') RestTemplate restTemplate,
+                               MappingJackson2HttpMessageConverter converter, ReceivedFromMessengerMongoCollection col) {
         verifyToken = environment.getRequiredProperty('facebook-webhook-token')
         pageAccessToken = environment.getRequiredProperty('facebook-page-access-token')
         googleKey = environment.getRequiredProperty('google-key')
         facebookAppSecret = environment.getRequiredProperty('facebook-app-secret')
         this.restTemplate = restTemplate
         this.jackson2HttpMessageConverter = converter
+        this.rfmmCollection = col
     }
 
     @RequestMapping(method = RequestMethod.GET)
@@ -59,23 +64,26 @@ class MessengerWebhookController {
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity webhook(HttpServletRequest request, @RequestHeader('X-Hub-Signature') String xHubSignature) {
-        byte[] bodyBytes = request.inputStream.bytes
+        byte[] bodyBytes = request.inputStream.text.getBytes(StandardCharsets.UTF_8)
         if(isPayloadFromFacebook(bodyBytes, xHubSignature)) {
             def body = jackson2HttpMessageConverter.objectMapper.readValue(bodyBytes, Map)
             log.info('Received {} body from facebook', JsonOutput.toJson(body))
             if (body.object == 'page') {
                 body.entry.each {
                     it.messaging.each { event ->
-                        if (event.optin) {
-                            // TODO **Implement**
-                        } else if (event.message) {
-                            processMessage(event.sender.id, event.message)
-                        } else if (event.delivery) {
-                            // TODO **Implement**
-                        } else if (event.postback) {
-                            // TODO **Implement**
-                        } else {
-                            log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
+                        if (event.recipient.id == '328479400833925') {
+                            if (event.optin) {
+                                // TODO **Implement**
+                            } else if (event.message && isNew(event.message)) {
+                                //TODO rfmmCollection.save(new ReceivedFromMessenger(data: ))
+                                processMessage(event.sender.id, event.message)
+                            } else if (event.delivery) {
+                                // TODO **Implement**
+                            } else if (event.postback) {
+                                // TODO **Implement**
+                            } else {
+                                log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
+                            }
                         }
                     }
                 }
@@ -85,6 +93,10 @@ class MessengerWebhookController {
         else {
             new ResponseEntity(FORBIDDEN)
         }
+    }
+
+    private boolean isNew(message) {
+        rfmmCollection.findByMessageIdAndSeq(message.mid, message.seq)
     }
 
     private boolean isPayloadFromFacebook(byte[] payloadBytes, String xHubSignature) {
