@@ -5,6 +5,7 @@ import org.springframework.data.mongodb.repository.MongoRepository
 import org.springframework.data.mongodb.repository.Query
 
 interface ReceivedFromMessengerMongoCollection extends MongoRepository<ReceivedFromMessenger, String> {
+    /* TODO
     @Query('''
         {
             "data.entry.messaging.message": {
@@ -14,4 +15,5 @@ interface ReceivedFromMessengerMongoCollection extends MongoRepository<ReceivedF
         }
     ''')
     ReceivedFromMessenger findByMessageIdAndSeq(String messageId, long seq)
+    */
 }
