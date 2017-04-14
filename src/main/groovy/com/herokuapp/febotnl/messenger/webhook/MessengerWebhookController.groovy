@@ -96,7 +96,8 @@ class MessengerWebhookController {
     }
 
     private boolean isNew(message) {
-        rfmmCollection.findByMessageIdAndSeq(message.mid, message.seq)
+        //TODO rfmmCollection.findByMessageIdAndSeq(message.mid, message.seq)
+        true
     }
 
     private boolean isPayloadFromFacebook(byte[] payloadBytes, String xHubSignature) {
@@ -106,7 +107,7 @@ class MessengerWebhookController {
             log.info('Received {} computed {}', hashReceived, hashComputed)
             return hashReceived == hashComputed
         }
-        return false
+        false
     }
 
     private void processMessage(sender, message) {
