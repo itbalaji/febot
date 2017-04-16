@@ -1,0 +1,36 @@
+<!DOCTYPE HTML>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <title>Getting Started: Serving Web Content</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8"/>
+</head>
+<body>
+<script th:inline="javascript">
+    /*<![CDATA[*/
+    window.fbAsyncInit = function () {
+        FB.init({
+            appId: [[${app_id}]],
+            xfbml: true,
+            version: 'v2.8'
+        });
+
+    };
+
+    (function (d, s, id) {
+            var js, fjs = d.getElementsByTagName(s)[0];
+            if (d.getElementById(id)) {
+                return;
+            }
+            js = d.createElement(s);
+            js.id = id;
+            js.src = "//connect.facebook.net/en_US/sdk.js";
+            fjs.parentNode.insertBefore(js, fjs);
+        }(document, 'script', 'facebook-jssdk')
+    );
+    /*]]>*/
+</script>
+
+<div class="fb-messenger-checkbox" prechecked="false" allow_login="true" size="standard"
+     th:attr="origin=${#httpServletRequest.requestURL}, page_id=${page_id}, messenger_app_id=${app_id}, user_ref=${user_ref}"></div>
+</body>
+</html>
