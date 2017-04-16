@@ -2,7 +2,6 @@ package com.herokuapp.febotnl.messenger.webhook
 
 import com.herokuapp.febotnl.data.ReceivedFromMessengerMongoCollection
 import com.herokuapp.febotnl.febo.model.Febo
-import com.herokuapp.febotnl.messenger.model.ReceivedFromMessenger
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
@@ -37,6 +36,7 @@ class MessengerWebhookController {
     final String pageAccessToken
     final String googleKey
     final String facebookAppSecret
+    final String febotPageId
     final MappingJackson2HttpMessageConverter jackson2HttpMessageConverter
     final ReceivedFromMessengerMongoCollection rfmmCollection
 
@@ -47,6 +47,7 @@ class MessengerWebhookController {
         pageAccessToken = environment.getRequiredProperty('facebook-page-access-token')
         googleKey = environment.getRequiredProperty('google-key')
         facebookAppSecret = environment.getRequiredProperty('facebook-app-secret')
+        febotPageId = environment.getRequiredProperty('febot-page-id')
         this.restTemplate = restTemplate
         this.jackson2HttpMessageConverter = converter
         this.rfmmCollection = col
@@ -71,7 +72,7 @@ class MessengerWebhookController {
             if (body.object == 'page') {
                 body.entry.each {
                     it.messaging.each { event ->
-                        if (event.recipient.id == '328479400833925') {
+                        if (event.recipient.id == febotPageId) {
                             if (event.optin) {
                                 // TODO **Implement**
                             } else if (event.message && isNew(event.message)) {
@@ -80,7 +81,9 @@ class MessengerWebhookController {
                             } else if (event.delivery) {
                                 // TODO **Implement**
                             } else if (event.postback) {
-                                // TODO **Implement**
+                                String payload = event.postback.payload
+                                log.info('Payload received {}', payload)
+                                sendLocationQuickReply(event.sender.id, 'Febot can find you the nearest Febo')
                             } else {
                                 log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
                             }
