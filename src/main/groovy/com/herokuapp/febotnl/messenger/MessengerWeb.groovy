@@ -3,6 +3,7 @@ package com.herokuapp.febotnl.messenger
 import groovy.util.logging.Slf4j
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.core.env.Environment
+import org.springframework.scheduling.annotation.Scheduled
 import org.springframework.stereotype.Controller
 import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.RequestMapping
@@ -17,11 +18,15 @@ import org.springframework.web.bind.annotation.RequestMethod
 class MessengerWeb {
     final String facebookAppId
     final String febotPageId
+    final String ROOT_URL
+    final String PING_PATH
 
     @Autowired
     MessengerWeb(Environment environment) {
         facebookAppId = environment.getRequiredProperty('facebook-app-id')
         febotPageId = environment.getRequiredProperty('febot-page-id')
+        ROOT_URL = environment.getRequiredProperty('ROOT_URL')
+        PING_PATH = environment.getRequiredProperty('PING_PATH')
     }
 
 
@@ -33,4 +38,17 @@ class MessengerWeb {
         return 'index'
     }
 
+    @Scheduled(fixedDelay = 3000000L)
+    void ping() {
+        try {
+            HttpURLConnection connection = new URL("$ROOT_URL$PING_PATH").openConnection() as HttpURLConnection
+            connection.connectTimeout = 1000
+            connection.readTimeout = 1000
+            connection.requestMethod = 'HEAD'
+            def responseCode = connection.responseCode
+            log.info('Received {} for ping', responseCode)
+        } catch (IOException exception) {
+            log.error('Scheduled ping failed', exception)
+        }
+    }
 }
