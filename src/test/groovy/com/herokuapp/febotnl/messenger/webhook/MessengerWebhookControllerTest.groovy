@@ -29,6 +29,7 @@ class MessengerWebhookControllerTest extends Specification {
         env.getRequiredProperty('facebook-webhook-token') >> 't0k3n'
         env.getRequiredProperty('google-key') >> 'k3y'
         env.getRequiredProperty('facebook-app-secret') >> 's3cr3t'
+        env.getRequiredProperty('febot-page-id') >> '328479400833925'
         template = Mock(RestTemplate)
         request = new MockHttpServletRequest()
         controller = new MessengerWebhookController(env, template, new MappingJackson2HttpMessageConverter(), null)
