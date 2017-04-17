@@ -196,6 +196,7 @@ class MessengerWebhookController {
                                         ]
                                 ]
                         ],
+                        text: 'Share your location to find another Febo',
                         quick_replies: [[content_type: 'location']]
                 ]
         ])
