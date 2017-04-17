@@ -195,7 +195,8 @@ class MessengerWebhookController {
                                                 ]
                                         ]
                                 ]
-                        ]
+                        ],
+                        quick_replies: [[content_type: 'location']]
                 ]
         ])
     }

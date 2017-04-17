@@ -38,12 +38,12 @@ class MessengerWeb {
         return 'index'
     }
 
-    @Scheduled(fixedDelay = 3000000L)
+    @Scheduled(fixedDelay = 1200_000L)
     void ping() {
         try {
             HttpURLConnection connection = new URL("$ROOT_URL$PING_PATH").openConnection() as HttpURLConnection
-            connection.connectTimeout = 1000
-            connection.readTimeout = 1000
+            connection.connectTimeout = 2000
+            connection.readTimeout = 2000
             connection.requestMethod = 'HEAD'
             def responseCode = connection.responseCode
             log.info('Received {} for ping', responseCode)
