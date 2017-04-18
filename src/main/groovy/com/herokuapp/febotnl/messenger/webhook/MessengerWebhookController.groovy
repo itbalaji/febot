@@ -220,7 +220,7 @@ class MessengerWebhookController {
 
     private SendApiResponse sendDataToMessenger(data) {
         try {
-            restTemplate.postForObject(GRAPH_API_URL, data, SendApiResponse, [access_token: pageAccessToken])
+            restTemplate.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, data, SendApiResponse, [access_token: pageAccessToken])
         }
         catch (HttpClientErrorException _4xx) {
             log.error('Could not send {} due to {}', JsonOutput.toJson(data), _4xx.responseBodyAsString, _4xx)

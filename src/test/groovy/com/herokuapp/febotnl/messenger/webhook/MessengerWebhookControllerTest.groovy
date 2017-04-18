@@ -10,8 +10,7 @@ import org.springframework.mock.web.MockHttpServletRequest
 import org.springframework.web.client.RestTemplate
 import spock.lang.Specification
 
-import static com.herokuapp.febotnl.messenger.Constants.FEBO_NL_URL
-import static com.herokuapp.febotnl.messenger.Constants.GRAPH_API_URL
+import static com.herokuapp.febotnl.messenger.Constants.*
 import static org.springframework.http.HttpStatus.FORBIDDEN
 import static org.springframework.http.HttpStatus.OK
 
@@ -82,7 +81,7 @@ class MessengerWebhookControllerTest extends Specification {
         then:
         result
         result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'you are welcome 😊'}, SendApiResponse, _)
+        1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {it.message.text == 'you are welcome 😊'}, SendApiResponse, _)
     }
 
     def 'Webhook location'() {
@@ -96,7 +95,7 @@ class MessengerWebhookControllerTest extends Specification {
         then:
         result
         result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {
+        1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {
             it.message.attachment.type == 'template' &&
                     it.message.attachment.payload.template_type == 'generic' &&
                     it.message.attachment.payload.elements.size() == 1 &&
@@ -114,6 +113,6 @@ class MessengerWebhookControllerTest extends Specification {
         then:
         result
         result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL, {it.message.text == 'I wish I understood what you say 😞. Why don\'t you try sending your location?' && it.message.quick_replies.size() == 1 && it.message.quick_replies[0].content_type == 'location'}, SendApiResponse, _)
+        1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {it.message.text == 'I wish I understood what you say 😞. Why don\'t you try sending your location?' && it.message.quick_replies.size() == 1 && it.message.quick_replies[0].content_type == 'location'}, SendApiResponse, _)
     }
 }
