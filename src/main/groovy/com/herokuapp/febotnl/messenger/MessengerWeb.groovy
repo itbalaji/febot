@@ -9,6 +9,8 @@ import org.springframework.ui.Model
 import org.springframework.web.bind.annotation.RequestMapping
 import org.springframework.web.bind.annotation.RequestMethod
 
+import java.time.LocalDateTime
+
 /**
  * Try Messenger Extension and plugin
  */
@@ -20,6 +22,7 @@ class MessengerWeb {
     final String febotPageId
     final String ROOT_URL
     final String PING_PATH
+    LocalDateTime lastSuccessfulPing
 
     @Autowired
     MessengerWeb(Environment environment) {
@@ -27,6 +30,7 @@ class MessengerWeb {
         febotPageId = environment.getRequiredProperty('febot-page-id')
         ROOT_URL = environment.getRequiredProperty('ROOT_URL')
         PING_PATH = environment.getRequiredProperty('PING_PATH')
+        lastSuccessfulPing = LocalDateTime.MIN
     }
 
 
@@ -38,15 +42,18 @@ class MessengerWeb {
         return 'index'
     }
 
-    @Scheduled(fixedDelay = 1200_000L)
+    @Scheduled(fixedDelay = 300_000L)
     void ping() {
         try {
-            HttpURLConnection connection = new URL("$ROOT_URL$PING_PATH").openConnection() as HttpURLConnection
-            connection.connectTimeout = 2000
-            connection.readTimeout = 2000
-            connection.requestMethod = 'HEAD'
-            def responseCode = connection.responseCode
-            log.info('Received {} for ping', responseCode)
+            if (lastSuccessfulPing < LocalDateTime.now().minusMinutes(55)) {
+                HttpURLConnection connection = new URL("$ROOT_URL$PING_PATH").openConnection() as HttpURLConnection
+                connection.connectTimeout = 2000
+                connection.readTimeout = 2000
+                connection.requestMethod = 'HEAD'
+                def responseCode = connection.responseCode
+                log.info('Received {} for ping', responseCode)
+                lastSuccessfulPing = LocalDateTime.now()
+            }
         } catch (IOException exception) {
             log.error('Scheduled ping failed', exception)
         }
