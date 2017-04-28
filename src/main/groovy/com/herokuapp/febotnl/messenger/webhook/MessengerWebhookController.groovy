@@ -86,6 +86,9 @@ class MessengerWebhookController {
                             } else if (event.postback) {
                                 String payload = event.postback.payload
                                 log.info('Payload received {}', payload)
+                                if (payload == 'what-can-febot-do') {
+                                    sendLocationQuickReply(event.sender.id, 'I repeat...')
+                                }
                                 sendLocationQuickReply(event.sender.id, 'Febot can find you the nearest Febo')
                             } else {
                                 log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
@@ -143,25 +146,26 @@ class MessengerWebhookController {
     private void findFoodTime(sender, location) {
         TimeZone googleTimeZone = getLocalTimeAt(location.coordinates)
         if (googleTimeZone) {
+            log.info('Received {} for {}', googleTimeZone, location)
             LocalTime localTime = LocalTime.now(ZoneId.of(googleTimeZone.timeZoneId))
             if (localTime.isAfter(LocalTime.of(6, 30)) && localTime.isBefore(LocalTime.of(9, 0))) {
-                sendTextMessage(sender, 'Breakfast time')
+                sendLocationQuickReply(sender, 'Breakfast time')
             }
             else if (localTime.isAfter(LocalTime.of(11, 30)) && localTime.isBefore(LocalTime.of(14, 0))) {
-                sendTextMessage(sender, 'Lunch time')
+                sendLocationQuickReply(sender, 'Lunch time')
             }
             else if (localTime.isAfter(LocalTime.of(18, 30)) && localTime.isBefore(LocalTime.of(21, 0))) {
-                sendTextMessage(sender, 'Dinner time')
+                sendLocationQuickReply(sender, 'Dinner time')
             }
             else {
-                sendTextMessage(sender, 'Why do you want to eat now? Are you pregnant?')
+                sendLocationQuickReply(sender, 'Why do you want to eat now? Are you pregnant?')
             }
         }
     }
 
     private TimeZone getLocalTimeAt(coordinates) {
         try {
-            restTemplate.exchange(GOOGLE_TIMEZONE_URL, HttpMethod.GET, null, new ParameterizedTypeReference<TimeZone>() {}, [key: googleKey,lat: coordinates.lat, lon: coordinates.long])?.body
+            restTemplate.exchange(GOOGLE_TIMEZONE_URL, HttpMethod.GET, null, new ParameterizedTypeReference<TimeZone>() {}, [key: googleKey,lat: coordinates.lat, lon: coordinates.long, timestamp: Math.round(System.currentTimeMillis() / 1000)])?.body
         }
         catch (HttpClientErrorException _4xx) {
             log.error('Could not get TimeZone at {} due to {}', coordinates, _4xx.responseBodyAsString)

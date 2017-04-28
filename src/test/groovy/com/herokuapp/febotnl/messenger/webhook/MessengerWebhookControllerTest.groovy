@@ -1,6 +1,7 @@
 package com.herokuapp.febotnl.messenger.webhook
 
 import com.herokuapp.febotnl.febo.model.Febo
+import com.herokuapp.febotnl.google.maps.model.TimeZone
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import org.springframework.core.env.Environment
 import org.springframework.http.HttpMethod
@@ -88,6 +89,7 @@ class MessengerWebhookControllerTest extends Specification {
         given:
         request.setContent('{"object":"page","entry":[{"id":"123456789012345","time":1474193856227,"messaging":[{"sender":{"id":"123456789012345"},"recipient":{"id":"328479400833925"},"timestamp":1474193856068,"message":{"mid":"mid.1234567890123:123456789012345asd","seq":30,"attachments":[{"title":"My Location","url":"https://www.facebook.com/l.php?u=https","type":"location","payload":{"coordinates":{"lat":52,"long":4}}}]}}]}]}'.bytes)
         1 * template.exchange(FEBO_NL_URL, HttpMethod.GET, null, *_) >> new ResponseEntity<>(new Febo(phone: '020-6912593', hours: '<table class="wpsl-opening-hours"><tr><td>Maandag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Dinsdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Woensdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Donderdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Vrijdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Zaterdag</td><td><time>10:00 - 20:00</time></td></tr><tr><td>Zondag</td><td><time>10:00 - 20:00</time></td></tr></table>'), OK)
+        1 * template.exchange(GOOGLE_TIMEZONE_URL, HttpMethod.GET, null, *_) >> new ResponseEntity<>(new TimeZone(timeZoneId: 'Europe/Amsterdam'), OK)
 
         when:
         ResponseEntity<String> result = controller.webhook(request, 'sha1=21f819097924682ef1e832a84631c7fe49a3682d')
@@ -96,10 +98,15 @@ class MessengerWebhookControllerTest extends Specification {
         result
         result.statusCode.'2xxSuccessful'
         1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {
-            it.message.attachment.type == 'template' &&
-                    it.message.attachment.payload.template_type == 'generic' &&
-                    it.message.attachment.payload.elements.size() == 1 &&
-                    it.message.attachment.payload.elements[0].buttons.size() == 3
+            it.message.text &&
+                    it.message.quick_replies.size() == 1 &&
+                    it.message.quick_replies[0].content_type == 'location'
+        }, SendApiResponse, _)
+        1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {
+            it.message.attachment?.type == 'template' &&
+                    it.message.attachment?.payload?.template_type == 'generic' &&
+                    it.message.attachment?.payload?.elements?.size() == 1 &&
+                    it.message.attachment?.payload?.elements[0]?.buttons?.size() == 3
         }, SendApiResponse, _)
     }
 
@@ -114,5 +121,19 @@ class MessengerWebhookControllerTest extends Specification {
         result
         result.statusCode.'2xxSuccessful'
         1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {it.message.text == 'I wish I understood what you say 😞. Why don\'t you try sending your location?' && it.message.quick_replies.size() == 1 && it.message.quick_replies[0].content_type == 'location'}, SendApiResponse, _)
+    }
+
+    def 'Webhook menu selection'() {
+        given:
+        request.setContent('{"object":"page","entry":[{"id":"328479400833925","time":1493418195022,"messaging":[{"recipient":{"id":"328479400833925"},"timestamp":1493418195022,"sender":{"id":"1137570269650996"},"postback":{"payload":"what-can-febot-do"}}]}]}'.bytes)
+
+        when:
+        ResponseEntity<String> result = controller.webhook(request, 'sha1=7098ca2b897d1a78f6116539fb4fe639e3efe136')
+
+        then:
+        result
+        result.statusCode.'2xxSuccessful'
+        1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {it.message.text == 'I repeat...' && it.message.quick_replies.size() == 1 && it.message.quick_replies[0].content_type == 'location'}, SendApiResponse, _)
+        1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {it.message.text == 'Febot can find you the nearest Febo' && it.message.quick_replies.size() == 1 && it.message.quick_replies[0].content_type == 'location'}, SendApiResponse, _)
     }
 }
