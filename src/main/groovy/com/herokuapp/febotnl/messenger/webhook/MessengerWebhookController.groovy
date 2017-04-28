@@ -161,7 +161,7 @@ class MessengerWebhookController {
 
     private TimeZone getLocalTimeAt(coordinates) {
         try {
-            restTemplate.exchange(GOOGLE_TIMEZONE_URL, HttpMethod.GET, null, new ParameterizedTypeReference<TimeZone>() {}, [lat: coordinates.lat, lon: coordinates.long])?.body
+            restTemplate.exchange(GOOGLE_TIMEZONE_URL, HttpMethod.GET, null, new ParameterizedTypeReference<TimeZone>() {}, [key: googleKey,lat: coordinates.lat, lon: coordinates.long])?.body
         }
         catch (HttpClientErrorException _4xx) {
             log.error('Could not get TimeZone at {} due to {}', coordinates, _4xx.responseBodyAsString)
