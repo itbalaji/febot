@@ -97,7 +97,7 @@ class MessengerWebhookControllerTest extends Specification {
         then:
         result
         result.statusCode.'2xxSuccessful'
-        1 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {
+        2 * template.postForObject(GRAPH_API_URL + MESSENGER_PLATFORM_URI, {
             it.message.text &&
                     it.message.quick_replies.size() == 1 &&
                     it.message.quick_replies[0].content_type == 'location'

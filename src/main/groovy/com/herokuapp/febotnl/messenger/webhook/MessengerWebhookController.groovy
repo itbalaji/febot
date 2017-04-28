@@ -158,7 +158,7 @@ class MessengerWebhookController {
                 sendLocationQuickReply(sender, 'Dinner time')
             }
             else {
-                sendLocationQuickReply(sender, 'Why do you want to eat now? Are you pregnant?')
+                sendLocationQuickReply(sender, 'Hungry at this time  Are you pregnant?')
             }
         }
     }
@@ -178,6 +178,10 @@ class MessengerWebhookController {
         if (febos) {
             Febo nearest = febos.first()
             sendFeboInGenericTemplate(sender, location.coordinates, nearest)
+            sendLocationQuickReply(sender, 'Share your location to find another Febo')
+        }
+        else {
+            sendLocationQuickReply(sender, 'This damn place has no Febo. See you in Netherlands soon.')
         }
     }
 
@@ -237,7 +241,6 @@ class MessengerWebhookController {
                                         ]
                                 ]
                         ],
-                        text: 'Share your location to find another Febo',
                         quick_replies: [[content_type: 'location']]
                 ]
         ])
