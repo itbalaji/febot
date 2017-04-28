@@ -2,6 +2,7 @@ package com.herokuapp.febotnl.messenger.webhook
 
 import com.herokuapp.febotnl.data.ReceivedFromMessengerMongoCollection
 import com.herokuapp.febotnl.febo.model.Febo
+import com.herokuapp.febotnl.google.maps.model.TimeZone
 import com.herokuapp.febotnl.messenger.model.SendApiResponse
 import groovy.json.JsonOutput
 import groovy.util.logging.Slf4j
@@ -20,6 +21,8 @@ import org.springframework.web.util.UriTemplate
 
 import javax.servlet.http.HttpServletRequest
 import java.nio.charset.StandardCharsets
+import java.time.LocalTime
+import java.time.ZoneId
 
 import static com.herokuapp.febotnl.messenger.Constants.*
 import static org.springframework.http.HttpStatus.*
@@ -133,6 +136,40 @@ class MessengerWebhookController {
     }
 
     private void processLocation(sender, location) {
+        findFoodTime(sender, location)
+        findFebo(sender, location)
+    }
+
+    private void findFoodTime(sender, location) {
+        TimeZone googleTimeZone = getLocalTimeAt(location.coordinates)
+        if (googleTimeZone) {
+            LocalTime localTime = LocalTime.now(ZoneId.of(googleTimeZone.timeZoneId))
+            if (localTime.isAfter(LocalTime.of(6, 30)) && localTime.isBefore(LocalTime.of(9, 0))) {
+                sendTextMessage(sender, 'Breakfast time')
+            }
+            else if (localTime.isAfter(LocalTime.of(11, 30)) && localTime.isBefore(LocalTime.of(14, 0))) {
+                sendTextMessage(sender, 'Lunch time')
+            }
+            else if (localTime.isAfter(LocalTime.of(18, 30)) && localTime.isBefore(LocalTime.of(21, 0))) {
+                sendTextMessage(sender, 'Dinner time')
+            }
+            else {
+                sendTextMessage(sender, 'Why do you want to eat now? Are you pregnant?')
+            }
+        }
+    }
+
+    private TimeZone getLocalTimeAt(coordinates) {
+        try {
+            restTemplate.exchange(GOOGLE_TIMEZONE_URL, HttpMethod.GET, null, new ParameterizedTypeReference<TimeZone>() {}, [lat: coordinates.lat, lon: coordinates.long])?.body
+        }
+        catch (HttpClientErrorException _4xx) {
+            log.error('Could not get TimeZone at {} due to {}', coordinates, _4xx.responseBodyAsString)
+            null
+        }
+    }
+
+    private void findFebo(sender, location) {
         List<Febo> febos = getFeboAt(location.coordinates)
         if (febos) {
             Febo nearest = febos.first()
