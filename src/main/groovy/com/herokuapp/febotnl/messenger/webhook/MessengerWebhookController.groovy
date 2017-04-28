@@ -158,7 +158,7 @@ class MessengerWebhookController {
                 sendLocationQuickReply(sender, 'Dinner time')
             }
             else {
-                sendLocationQuickReply(sender, 'Hungry at this time  Are you pregnant?')
+                sendLocationQuickReply(sender, 'Hungry at this time! Are you pregnant?')
             }
         }
     }
