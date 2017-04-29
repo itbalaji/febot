@@ -191,7 +191,7 @@ class MessengerWebhookController {
                             attachment   : [
                                     type   : 'image',
                                     payload: [
-                                            url: "$result.url"
+                                            url: "${result.media[0].tinygif.url}".toString()
                                     ]
                             ],
                             quick_replies: [[content_type: 'location']]

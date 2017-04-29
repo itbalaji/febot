@@ -5,6 +5,6 @@ import groovy.transform.Immutable
 
 @Immutable
 @JsonIgnoreProperties(ignoreUnknown = true)
-class GifResult {
-    List<Media> media
+class MediaType {
+    String url
 }
