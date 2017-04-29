@@ -1,5 +1,7 @@
 package com.herokuapp.febotnl.messenger.webhook
 
+import co.tenor.model.GifResult
+import co.tenor.model.GifsResponse
 import com.herokuapp.febotnl.data.ReceivedFromMessengerMongoCollection
 import com.herokuapp.febotnl.febo.model.Febo
 import com.herokuapp.febotnl.google.maps.model.TimeZone
@@ -150,16 +152,51 @@ class MessengerWebhookController {
             LocalTime localTime = LocalTime.now(ZoneId.of(googleTimeZone.timeZoneId))
             if (localTime.isAfter(LocalTime.of(6, 30)) && localTime.isBefore(LocalTime.of(9, 0))) {
                 sendLocationQuickReply(sender, 'Breakfast time')
+                sendGif(sender, 'breakfast')
             }
             else if (localTime.isAfter(LocalTime.of(11, 30)) && localTime.isBefore(LocalTime.of(14, 0))) {
                 sendLocationQuickReply(sender, 'Lunch time')
+                sendGif(sender, 'lunch')
             }
             else if (localTime.isAfter(LocalTime.of(18, 30)) && localTime.isBefore(LocalTime.of(21, 0))) {
                 sendLocationQuickReply(sender, 'Dinner time')
+                sendGif(sender, 'dinner')
             }
             else {
                 sendLocationQuickReply(sender, 'Hungry at this time! Are you pregnant?')
+                sendGif(sender, 'pregnant')
             }
+        }
+    }
+
+    private GifResult getGifFor(query) {
+        try {
+            def results = restTemplate.exchange(TENOR_GIF_URL, HttpMethod.GET, null, new ParameterizedTypeReference<GifsResponse>() {}, [query: query])?.body?.results
+            results ? results[new Random().nextInt(results?.size())] : null
+        }
+        catch (HttpClientErrorException _4xx) {
+            log.error('Could not get GIFs for {}', query, _4xx.responseBodyAsString)
+            null
+        }
+    }
+
+    private void sendGif(sender, query) {
+        GifResult result = getGifFor(query)
+        if (result) {
+            sendDataToMessenger([
+                    recipient: [
+                            id: sender
+                    ],
+                    message  : [
+                            attachment   : [
+                                    type   : 'image',
+                                    payload: [
+                                            url: "$result.url"
+                                    ]
+                            ],
+                            quick_replies: [[content_type: 'location']]
+                    ]
+            ])
         }
     }
 
