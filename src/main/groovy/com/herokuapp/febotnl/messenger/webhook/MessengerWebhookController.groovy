@@ -70,39 +70,44 @@ class MessengerWebhookController {
 
     @RequestMapping(method = RequestMethod.POST)
     ResponseEntity webhook(HttpServletRequest request, @RequestHeader('X-Hub-Signature') String xHubSignature) {
-        byte[] bodyBytes = request.inputStream.text.getBytes(StandardCharsets.UTF_8)
-        if(isPayloadFromFacebook(bodyBytes, xHubSignature)) {
-            def body = jackson2HttpMessageConverter.objectMapper.readValue(bodyBytes, Map)
-            log.info('Received {} body from facebook', JsonOutput.toJson(body))
-            if (body.object == 'page') {
-                body.entry.each {
-                    it.messaging.each { event ->
-                        if (event.recipient.id == febotPageId) {
-                            if (event.optin) {
-                                // TODO **Implement**
-                            } else if (event.message && isNew(event.message)) {
-                                //TODO rfmmCollection.save(new ReceivedFromMessenger(data: ))
-                                processMessage(event.sender.id, event.message)
-                            } else if (event.delivery) {
-                                // TODO **Implement**
-                            } else if (event.postback) {
-                                String payload = event.postback.payload
-                                log.info('Payload received {}', payload)
-                                if (payload == 'what-can-febot-do') {
-                                    sendLocationQuickReply(event.sender.id, 'I repeat...')
+        try {
+            byte[] bodyBytes = request.inputStream.text.getBytes(StandardCharsets.UTF_8)
+            if (isPayloadFromFacebook(bodyBytes, xHubSignature)) {
+                def body = jackson2HttpMessageConverter.objectMapper.readValue(bodyBytes, Map)
+                log.info('Received {} body from facebook', JsonOutput.toJson(body))
+                if (body.object == 'page') {
+                    body.entry.each {
+                        it.messaging.each { event ->
+                            if (event.recipient.id == febotPageId) {
+                                if (event.optin) {
+                                    // TODO **Implement**
+                                } else if (event.message && isNew(event.message)) {
+                                    //TODO rfmmCollection.save(new ReceivedFromMessenger(data: ))
+                                    processMessage(event.sender.id, event.message)
+                                } else if (event.delivery) {
+                                    // TODO **Implement**
+                                } else if (event.postback) {
+                                    String payload = event.postback.payload
+                                    log.info('Payload received {}', payload)
+                                    if (payload == 'what-can-febot-do') {
+                                        sendLocationQuickReply(event.sender.id, 'I repeat...')
+                                    }
+                                    sendLocationQuickReply(event.sender.id, 'Febot can find you the nearest Febo')
+                                } else {
+                                    log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
                                 }
-                                sendLocationQuickReply(event.sender.id, 'Febot can find you the nearest Febo')
-                            } else {
-                                log.warn('Unknown messaging event {} received at webhook', JsonOutput.toJson(body))
                             }
                         }
                     }
                 }
+                new ResponseEntity(OK)
+            } else {
+                new ResponseEntity(FORBIDDEN)
             }
-            new ResponseEntity(OK)
         }
-        else {
-            new ResponseEntity(FORBIDDEN)
+        catch (e) {
+            log.error('Unexpected', e)
+            new ResponseEntity(OK)
         }
     }
 
